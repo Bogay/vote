@@ -111,17 +111,3 @@ class UserService:
 
     async def get_by_username(self, username: str):
         return await self.repo.get_by_username(username)
-
-
-def create_access_token(data: dict, expires_after: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_after is None:
-        expires_after = timedelta(minutes=15)
-    expires_at = datetime.now() + expires_after
-    to_encode.update({'exp': expires_at})
-    encoded_jwt = jwt.encode(
-        to_encode,
-        'foobar',
-        algorithm='HS256',
-    )
-    return encoded_jwt

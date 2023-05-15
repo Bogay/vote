@@ -6,12 +6,13 @@ from fastapi import (
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from jose import JWTError, jwt
-from typing import Annotated, Coroutine
+from jose import JWTError
+from typing import Annotated
 from pydantic import BaseModel
 
-from . import oauth2_schema, get_user_service
-from vote.domain.user import UserRepository, UserService, create_access_token
+from . import oauth2_schema, get_user_service, get_auth_service
+from vote.domain.user import UserService
+from vote.domain.auth import AuthService
 
 router = APIRouter()
 
@@ -27,7 +28,8 @@ class TokenData(BaseModel):
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_schema)],
-    svc: Annotated[UserRepository, Depends(get_user_service)],
+    auth_svc: Annotated[AuthService, Depends(get_auth_service)],
+    user_svc: Annotated[UserService, Depends(get_user_service)],
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -35,14 +37,14 @@ async def get_current_user(
         headers={'WWW-Authenticate': 'Bearer'},
     )
     try:
-        payload = jwt.decode(token, 'foobar', algorithms=['HS256'])
-        username: str = payload.get('sub')
-        if username is None:
+        payload = auth_svc.parse(token)
+        username = payload.get('sub')
+        if username is None or not isinstance(username, str):
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = svc.get_by_username(token_data.username)
+    user = user_svc.get_by_username(token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -54,9 +56,10 @@ async def login_for_access_token(
         OAuth2PasswordRequestForm,
         Depends(),
     ],
-    svc: Annotated[UserService, Depends(get_user_service)],
+    user_svc: Annotated[UserService, Depends(get_user_service)],
+    auth_svc: Annotated[AuthService, Depends(get_auth_service)],
 ):
-    user = await svc.authenticate_user(
+    user = await user_svc.authenticate_user(
         form_data.username,
         form_data.password,
     )
@@ -68,7 +71,7 @@ async def login_for_access_token(
         )
     # TODO: config
     access_token_expires = timedelta(minutes=300)
-    access_token = create_access_token(
+    access_token = auth_svc.sign(
         data={'sub': user.username},
         expires_delta=access_token_expires,
     )
