@@ -86,7 +86,10 @@ class VoteRepositoryImpl:
         ...
 
     async def get_all(self) -> list[Vote]:
-        return []
+        results = await self.db.query('SELECT * FROM vote;')
+        vote_records = results[0]['result']
+        print(vote_records)
+        return [Vote.parse_obj(v) for v in vote_records]
 
 
 class VoteService:

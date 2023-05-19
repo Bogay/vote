@@ -10,27 +10,36 @@ router = APIRouter()
 
 
 class VoteResponse(BaseModel):
+    username: str
+    topic_id: str
+    option_id: str
 
     @classmethod
     def from_vote(cls, vote: Vote):
-        return cls()
+        return cls.from_orm(vote)
+
+    class Config:
+        orm_mode = True
 
 
 @router.get('/')
 async def list_vote(
-    user: Annotated[str, Query],
+    user: Annotated[str | None, Query],
     svc: Annotated[
         VoteService,
         Depends(get_vote_service),
     ],
+    current_user: Annotated[User, Depends(get_current_user)],
 ):
     '''
     List vote by user. Users can only see self votes.
     '''
+    if user is None:
+        user = current_user.username
     # TODO: check permission
     votes = [
         VoteResponse.from_vote(v) for v in await svc.get_all()
-        if v.user.username == user
+        if v.username == user
     ]
     return votes
 
