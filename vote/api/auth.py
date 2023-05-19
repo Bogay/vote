@@ -44,7 +44,7 @@ async def get_current_user(
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = user_svc.get_by_username(token_data.username)
+    user = await user_svc.get_by_username(token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -73,7 +73,7 @@ async def login_for_access_token(
     access_token_expires = timedelta(minutes=300)
     access_token = auth_svc.sign(
         data={'sub': user.username},
-        expires_delta=access_token_expires,
+        expires_after=access_token_expires,
     )
     return Token(
         access_token=access_token,

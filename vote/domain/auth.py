@@ -9,30 +9,11 @@ class AuthConfig(BaseModel):
     algorithm: str
 
 
-class AuthConfigRepository(Protocol):
-
-    def get(self) -> AuthConfig:
-        ...
-
-
-class AuthConfigRepositoryImpl:
-
-    def __init__(self, config_str: str) -> None:
-        '''
-        Load from json string
-        '''
-        self.config = AuthConfig.parse_raw(config_str)
-
-    def get(self) -> AuthConfig:
-        return self.config
-
-
 # TODO: maybe an application service?
 class AuthService:
 
-    def __init__(self, repo: AuthConfigRepository) -> None:
-        self.repo = repo
-        self.config = self.repo.get()
+    def __init__(self, config: AuthConfig) -> None:
+        self.config = config
 
     def parse(self, token: str) -> dict[str, Any]:
         payload = jwt.decode(

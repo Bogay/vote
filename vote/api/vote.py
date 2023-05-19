@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Query, Depends
 from typing import Annotated
 from pydantic import BaseModel
+from vote.domain.user import User
 from vote.domain.vote import VoteService, CreateVoteInput, Vote
 from . import get_vote_service
+from .auth import get_current_user
 
 router = APIRouter()
 
@@ -12,11 +14,6 @@ class VoteResponse(BaseModel):
     @classmethod
     def from_vote(cls, vote: Vote):
         return cls()
-
-
-class CreateVoteRequest(BaseModel):
-    topic_id: str
-    option_id: str
 
 
 @router.get('/')
@@ -40,19 +37,14 @@ async def list_vote(
 
 @router.post('/')
 async def create_vote(
-    request: CreateVoteRequest,
+    input: CreateVoteInput,
     svc: Annotated[
         VoteService,
         Depends(get_vote_service),
     ],
+    user: Annotated[User, Depends(get_current_user)],
 ):
     '''
     Create a vote. There should be at most one vote for a topic per user.
     '''
-    input = CreateVoteInput(
-        # TODO: get username
-        username='foo',
-        topic_id=request.topic_id,
-        option_id=request.option_id,
-    )
-    await svc.add(input)
+    await svc.add(user.username, input)
