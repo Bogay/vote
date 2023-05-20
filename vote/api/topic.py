@@ -16,6 +16,10 @@ router = APIRouter()
 
 
 class TopicResponse(BaseModel):
+
+    class Config:
+        orm_mode = True
+
     id: str
     description: str
     starts_at: datetime
@@ -31,6 +35,10 @@ class TopicResponse(BaseModel):
 
 
 class TopicDetailResponse(BaseModel):
+
+    class Config:
+        orm_mode = True
+
     id: str
     description: str
     starts_at: datetime
@@ -85,10 +93,18 @@ async def get_one_topic(
 
 
 @router.post('/', response_model=CreateTopicResponse)
-async def create_topic(input: CreateTopicInput):
+async def create_topic(
+    input: CreateTopicInput,
+    svc: Annotated[
+        TopicService,
+        Depends(get_topic_service),
+    ],
+):
     '''
     Create new topic.
     '''
+    id = await svc.new(input)
+    return CreateTopicResponse(id=id)
 
 
 @router.patch('/{topic_id}')
