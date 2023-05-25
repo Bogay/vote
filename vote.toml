@@ -1,0 +1,4 @@
+# This is an example config for vote
+[auth]
+secret_key = "i-am-example-secret"
+algorithm = "HS256"
