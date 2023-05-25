@@ -2,15 +2,22 @@ from typing import Annotated
 from surrealdb import Surreal
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseSettings
+from pydantic import BaseSettings, BaseModel
 import toml
-
 from vote.domain.user import UserRepository, UserRepositoryImpl, UserService
 from vote.domain.topic import TopicService, TopicRepositoryImpl
 from vote.domain.vote import VoteService, VoteRepositoryImpl
 from vote.domain.auth import AuthConfig, AuthService
 
 oauth2_schema = OAuth2PasswordBearer(tokenUrl='/auth/token')
+
+
+class SurrealConfig(BaseModel):
+    url: str
+    username: str
+    password: str
+    namespace: str
+    database: str
 
 
 def toml_settings(settings: BaseSettings) -> dict:
@@ -23,6 +30,7 @@ class VoteConfigToml(BaseSettings):
     Config for vote app loading from a toml file
     '''
     auth: AuthConfig
+    db: SurrealConfig
 
     class Config:
         path = 'vote.toml'
@@ -46,12 +54,20 @@ def get_vote_config():
     return VoteConfigToml()
 
 
-async def get_db():
-    db = Surreal('ws://localhost:8080/rpc')
+async def get_db(cfg: Annotated[
+    VoteConfigToml,
+    Depends(get_vote_config),
+]):
+    db = Surreal(cfg.db.url)
     async with db as db:
-        # TODO: load config
-        await db.signin({'user': 'root', 'pass': 'root'})
-        await db.use('vote', 'vote')
+        await db.signin({
+            'user': cfg.db.username,
+            'pass': cfg.db.password,
+        })
+        await db.use(
+            cfg.db.namespace,
+            cfg.db.database,
+        )
         yield db
 
 

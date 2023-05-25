@@ -2,3 +2,10 @@
 [auth]
 secret_key = "i-am-example-secret"
 algorithm = "HS256"
+
+[db]
+url = "ws://localhost:8080/rpc"
+username = "root"
+password = "root"
+namespace = "vote"
+database = "vote"
