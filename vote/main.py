@@ -5,6 +5,7 @@ from vote.api import (
     vote,
     topic,
     healthz,
+    comment,
 )
 
 app = FastAPI()
@@ -13,3 +14,4 @@ app.include_router(user.router, prefix='/user')
 app.include_router(vote.router, prefix='/vote')
 app.include_router(topic.router, prefix='/topic')
 app.include_router(healthz.router, prefix='/healthz')
+app.include_router(comment.router, prefix='/comment')
