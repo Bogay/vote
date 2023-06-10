@@ -8,6 +8,7 @@ from vote.domain.user import UserRepository, UserRepositoryImpl, UserService
 from vote.domain.topic import TopicService, TopicRepositoryImpl
 from vote.domain.vote import VoteService, VoteRepositoryImpl
 from vote.domain.auth import AuthConfig, AuthService
+from vote.domain.comment import CommentRepositoryImpl, CommentService
 
 oauth2_schema = OAuth2PasswordBearer(tokenUrl='/auth/token')
 
@@ -108,3 +109,12 @@ def get_auth_service(cfg: Annotated[
     Depends(get_vote_config),
 ]):
     return AuthService(cfg.auth)
+
+
+async def get_comment_service(db: Annotated[
+    Surreal,
+    Depends(get_db),
+]):
+    repo = CommentRepositoryImpl(db)
+    # await repo.init_db()
+    return CommentService(repo)
