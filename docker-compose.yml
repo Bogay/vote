@@ -1,0 +1,26 @@
+version: '3'
+services:
+  web:
+    build:
+      context: .
+      target: development
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/app
+  db:
+    image: surrealdb/surrealdb
+    volumes:
+      - surreal-data:/surreal-data
+    environment:
+      SURREAL_USER: root
+      SURREAL_PASS: root
+    command:
+      - start
+      - --user
+      - root
+      - --pass
+      - root
+      - file:/surreal-data/vote.db
+volumes:
+  surreal-data:
