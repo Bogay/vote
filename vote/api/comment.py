@@ -40,7 +40,9 @@ async def new_comment(
         Depends(get_comment_service),
     ],
 ):
-    input = CreateCommentInput(**req.dict(), created_at=datetime.now(), user_id=user.id)
+    input = CreateCommentInput(**req.dict(),
+                               created_at=datetime.now(),
+                               user_id=user.id)
     await svc.post(input)
 
 
@@ -59,6 +61,3 @@ async def update_comment(
 ):
     input = UpdateCommentInput(**req.dict(), id=id)
     await svc.patch(user, input)
-
-
-# Client <---> (FastAPI) (Flask) (Django) <---> CommentService <---> CommentRepository <---> (SurrealDB) (MySQL) (PostgreSQL)

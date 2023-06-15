@@ -63,11 +63,10 @@ class CommentRepositoryImpl:
             {'topic_id': topic_id})
         result = result[0]['result']
         return [Comment.parse_obj(r) for r in result]
-    
+
     async def get_by_id(self, id: str) -> Comment | None:
-        result = await self.db.query(
-            'SELECT * FROM comment WHERE id=$id',
-            {'id': id})
+        result = await self.db.query('SELECT * FROM comment WHERE id=$id',
+                                     {'id': id})
         result = result[0]['result']
         if len(result) == 0:
             return None
