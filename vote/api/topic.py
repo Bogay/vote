@@ -10,7 +10,10 @@ from vote.domain.topic import (
     TopicStage,
     CreateTopicInput,
 )
-from . import get_topic_service
+from vote.domain.vote import VoteService, Vote
+from vote.domain.user import User
+from vote.api.auth import get_current_user
+from . import get_topic_service, get_vote_service
 
 router = APIRouter()
 
@@ -131,3 +134,33 @@ async def get_vote_result(topic_id: str):
     '''
     Get vote result of a topic.
     '''
+
+
+@router.get('/{topic_id}/my-vote', response_model=Vote)
+async def get_my_vote(
+    topic_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    topic_svc: Annotated[
+        TopicService,
+        Depends(get_topic_service),
+    ],
+    vote_svc: Annotated[VoteService, Depends(get_vote_service)],
+):
+    '''
+    Get my vote for specific topic
+    '''
+    topic = await topic_svc.get_by_id(topic_id)
+    if topic is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Topic not found',
+        )
+    votes = await vote_svc.get_all()
+    try:
+        vote = next(v for v in votes if v.username == user.username and v.topic_id == topic_id)
+        return vote
+    except StopIteration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Vote not found',
+        )
