@@ -136,6 +136,20 @@ async def get_vote_result(topic_id: str):
     '''
 
 
+@router.post('/refresh', status_code=status.HTTP_204_NO_CONTENT)
+async def refresh_all_topics(svc: Annotated[
+    TopicService,
+    Depends(get_topic_service),
+], ):
+    topics = await svc.get_all()
+    # FIXME: don't use SurrealQL directly
+    await svc.repo.db.query('BEGIN TRANSACTION')
+    for t in topics:
+        t.refresh()
+        await svc.save(t)
+    await svc.repo.db.query('COMMIT TRANSACTION')
+
+
 @router.get('/{topic_id}/my-vote', response_model=Vote)
 async def get_my_vote(
     topic_id: str,
@@ -157,7 +171,8 @@ async def get_my_vote(
         )
     votes = await vote_svc.get_all()
     try:
-        vote = next(v for v in votes if v.username == user.username and v.topic_id == topic_id)
+        vote = next(v for v in votes
+                    if v.username == user.username and v.topic_id == topic_id)
         return vote
     except StopIteration:
         raise HTTPException(
