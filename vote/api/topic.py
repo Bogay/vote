@@ -10,7 +10,10 @@ from vote.domain.topic import (
     TopicStage,
     CreateTopicInput,
 )
-from . import get_topic_service
+from vote.domain.vote import VoteService, Vote
+from vote.domain.user import User
+from vote.api.auth import get_current_user
+from . import get_topic_service, get_vote_service
 
 router = APIRouter()
 
@@ -127,7 +130,75 @@ async def update_topic(
 
 
 @router.get('/{topic_id}/vote-result')
-async def get_vote_result(topic_id: str):
+async def get_vote_result(
+    topic_id: str,
+    topic_svc: Annotated[
+        TopicService,
+        Depends(get_topic_service),
+    ],
+    vote_svc: Annotated[VoteService, Depends(get_vote_service)],
+):
     '''
     Get vote result of a topic.
     '''
+    topic = await topic_svc.get_by_id(topic_id)
+    if topic is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Topic not found',
+        )
+    if topic.stage != TopicStage.ENDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Not ended',
+        )
+    votes = [v for v in await vote_svc.get_all() if v.topic_id == topic_id]
+    stats = {o.id: 0 for o in topic.options}
+    for v in votes:
+        stats[v.option_id] += 1
+    return stats
+
+
+@router.post('/refresh', status_code=status.HTTP_204_NO_CONTENT)
+async def refresh_all_topics(svc: Annotated[
+    TopicService,
+    Depends(get_topic_service),
+], ):
+    topics = await svc.get_all()
+    # FIXME: don't use SurrealQL directly
+    await svc.repo.db.query('BEGIN TRANSACTION')
+    for t in topics:
+        t.refresh()
+        await svc.save(t)
+    await svc.repo.db.query('COMMIT TRANSACTION')
+
+
+@router.get('/{topic_id}/my-vote', response_model=Vote)
+async def get_my_vote(
+    topic_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    topic_svc: Annotated[
+        TopicService,
+        Depends(get_topic_service),
+    ],
+    vote_svc: Annotated[VoteService, Depends(get_vote_service)],
+):
+    '''
+    Get my vote for specific topic
+    '''
+    topic = await topic_svc.get_by_id(topic_id)
+    if topic is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Topic not found',
+        )
+    votes = await vote_svc.get_all()
+    try:
+        vote = next(v for v in votes
+                    if v.username == user.username and v.topic_id == topic_id)
+        return vote
+    except StopIteration:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Vote not found',
+        )

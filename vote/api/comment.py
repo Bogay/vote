@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from . import get_comment_service
 from .auth import get_current_user
 from datetime import datetime
 
-from vote.domain.comment import CommentService, UpdateCommentInput, CreateCommentInput
+from vote.domain.comment import CommentService, UpdateCommentInput, CreateCommentInput, Comment
 from vote.domain.user import User
 
 from typing import Annotated
@@ -13,9 +13,13 @@ router = APIRouter()
 
 
 @router.get('/')
-async def get_comments(topic_id: str,
-                       svc: Annotated[CommentService,
-                                      Depends(get_comment_service)]):
+async def get_comments(
+    topic_id: str,
+    svc: Annotated[
+        CommentService,
+        Depends(get_comment_service),
+    ],
+) -> list[Comment]:
     return await svc.get(topic_id)
 
 
@@ -28,7 +32,7 @@ class NewCommentRequest(BaseModel):
     content: str
 
 
-@router.post('/')
+@router.post('/', status_code=status.HTTP_204_NO_CONTENT)
 async def new_comment(
     req: NewCommentRequest,
     user: Annotated[
@@ -40,13 +44,15 @@ async def new_comment(
         Depends(get_comment_service),
     ],
 ):
-    input = CreateCommentInput(**req.dict(),
-                               created_at=datetime.now(),
-                               user_id=user.id)
+    input = CreateCommentInput(
+        **req.dict(),
+        created_at=datetime.now(),
+        user_id=user.id,
+    )
     await svc.post(input)
 
 
-@router.patch('/{id}')
+@router.patch('/{id}', status_code=status.HTTP_204_NO_CONTENT)
 async def update_comment(
     id: str,
     req: UpdateCommentRequest,

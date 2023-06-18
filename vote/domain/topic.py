@@ -1,6 +1,6 @@
 from typing import Protocol, Annotated
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from surrealdb import Surreal
 import secrets
@@ -52,6 +52,10 @@ class AddTopicError(Exception):
         self.err = err
 
 
+class UpdateTopicError(Exception):
+    ...
+
+
 class Topic(BaseModel):
     id: str
     description: str
@@ -69,6 +73,15 @@ class Topic(BaseModel):
         '''
         Update topic inplace.
         '''
+
+    def refresh(self):
+        now = datetime.now(timezone.utc)
+        if now < self.starts_at:
+            self.stage = TopicStage.NOT_STARTED
+        elif self.starts_at <= now <= self.ends_at:
+            self.stage = TopicStage.IN_PROGRESS
+        else:
+            self.stage = TopicStage.ENDED
 
 
 class TopicRepository(Protocol):
@@ -143,10 +156,24 @@ class TopicRepositoryImpl:
         return Topic.parse_obj(result[0])
 
     async def save(self, topic: Topic):
-        ...
+        topic_dict = topic.dict()
+        topic_dict['starts_at'] = topic_dict['starts_at'].isoformat()
+        topic_dict['ends_at'] = topic_dict['ends_at'].isoformat()
+        topic_dict['created_at'] = topic_dict['created_at'].isoformat()
+        topic_dict['updated_at'] = topic_dict['updated_at'].isoformat()
+        result = await self.db.query(
+            'UPDATE topic CONTENT $content WHERE id=$id;',
+            {
+                'content': topic_dict,
+                'id': topic.id,
+            },
+        )
+        if result[0]['status'] != 'OK':
+            raise UpdateTopicError(result[0])
 
     async def get_all(self) -> list[Topic]:
-        result = await self.db.query('SELECT * FROM topic')
+        result = await self.db.query(
+            'SELECT * FROM topic ORDER BY created_at DESC')
         result = result[0]['result']
         return [Topic.parse_obj(r) for r in result]
 
@@ -160,7 +187,7 @@ class TopicService:
         return await self.repo.add(input)
 
     async def save(self, topic: Topic):
-        ...
+        await self.repo.save(topic)
 
     async def get_by_id(self, id: str) -> Topic | None:
         return await self.repo.get_by_id(id)
