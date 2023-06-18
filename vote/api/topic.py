@@ -130,10 +130,33 @@ async def update_topic(
 
 
 @router.get('/{topic_id}/vote-result')
-async def get_vote_result(topic_id: str):
+async def get_vote_result(
+    topic_id: str,
+    topic_svc: Annotated[
+        TopicService,
+        Depends(get_topic_service),
+    ],
+    vote_svc: Annotated[VoteService, Depends(get_vote_service)],
+):
     '''
     Get vote result of a topic.
     '''
+    topic = await topic_svc.get_by_id(topic_id)
+    if topic is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail='Topic not found',
+        )
+    if topic.stage != TopicStage.ENDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='Not ended',
+        )
+    votes = [v for v in await vote_svc.get_all() if v.topic_id == topic_id]
+    stats = {o.id: 0 for o in topic.options}
+    for v in votes:
+        stats[v.option_id] += 1
+    return stats
 
 
 @router.post('/refresh', status_code=status.HTTP_204_NO_CONTENT)

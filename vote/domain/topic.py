@@ -172,7 +172,8 @@ class TopicRepositoryImpl:
             raise UpdateTopicError(result[0])
 
     async def get_all(self) -> list[Topic]:
-        result = await self.db.query('SELECT * FROM topic ORDER BY created_at DESC')
+        result = await self.db.query(
+            'SELECT * FROM topic ORDER BY created_at DESC')
         result = result[0]['result']
         return [Topic.parse_obj(r) for r in result]
 
